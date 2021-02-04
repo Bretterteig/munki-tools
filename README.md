@@ -10,3 +10,6 @@ The tool has a --help option
 ![CatalogReporter Preview](SamplePictures/CatalogReporter.png)
 ### Future
 I might look into Slack compatiblity and output as JSON option. 
+
+## Packages
+Also check out the munki software packages it the [subdirectory](packages/)!
