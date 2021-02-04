@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>version</key>
+	<string>SPECIFIY THE VERSION TO DOWNLOAD</string>
+    <key>display_name</key>
+	<string>SPECIFY THE MARKETING NAME OF THE OS</string>
+	<key>icon_name</key>
+	<string>CUSTOM ICON FOR THE OS</string>
+	<key>OnDemand</key>
+	<true/>
+	<key>catalogs</key>
+	<array/>
+	<key>category</key>
+	<string>Operating System</string>
+	<key>developer</key>
+	<string>Apple Inc.</string>
+	<key>installed_size</key>
+	<integer>41943040</integer>
+	<key>installer_item_size</key>
+	<integer>13107200</integer>
+	<key>installer_type</key>
+	<string>nopkg</string>
+	<key>minimum_os_version</key>
+	<string>10.14.0</string>
+	<key>name</key>
+	<string>DownloadMacOS</string>
+	<key>postinstall_script</key>
+	<string>#!/usr/local/munki/munki-python
+
+# REQUIRED LIBRARIES
+import subprocess
+from time import sleep
+from shutil import rmtree
+from sys import path
+path.append('/usr/local/munki')
+from munkilib.display import display_status_major, display_status_minor, display_percent_done, display_error
+from munkilib.osinstaller import get_os_version, find_install_macos_app
+from munkilib.installinfo import get_installinfo
+
+def quit_error(msg: str):
+    display_error(msg)
+    sleep(5)
+    exit(1)
+
+install_info = next((item for item in get_installinfo()['managed_installs'] if item['name'] == 'DownloadMacOS'), None)
+version = install_info['version_to_install']
+title = install_info['display_name']
+
+if not version:
+    quit_error('Could not determine version. Check if the package is named "DownloadMacOS"')
+
+display_status_major(title)
+
+# DELETE INVALID INSTALLERS AND CHECK IF VALID INSTALLER ALREADY AVAILABLE
+while True:
+    installer = find_install_macos_app('/Applications/')
+    if installer:
+        app_version = get_os_version(installer)
+        display_status_minor('Found installer of version ' + app_version)
+        if app_version == version:
+            display_status_minor('Installer already available on the system')
+            exit(0)
+        else:
+            display_status_minor('Removing invalid installer at ' + installer)
+            rmtree(installer, ignore_errors=True)
+    else: 
+        break
+
+
+# DOWNLOAD THE OS FROM APPLE CDN
+download = subprocess.Popen(
+    ['/usr/bin/script', '-q', '/dev/null', '/usr/sbin/softwareupdate', '--fetch-full-installer', '--full-installer-version', version],
+    bufsize=0,
+    universal_newlines=True,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE
+)
+
+while download.poll() is None:
+    line = download.stdout.readline()
+
+    if line is None or line == "": 
+        sleep(0.5)
+        continue
+
+    if line.startswith('Installing'):
+        progress = int(float(line.split(':')[1].strip().rstrip('%')))
+        display_percent_done(progress, 100)
+
+    else: 
+        display_status_minor(line)
+
+if download.returncode != 0:
+    quit_error('Download failed')
+
+display_status_minor('Download successful')
+exit(0)</string>
+	<key>uninstallable</key>
+	<false/>
+</dict>
+</plist>

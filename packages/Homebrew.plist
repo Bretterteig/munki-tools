@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>catalogs</key>
+	<array/>
+	<key>category</key>
+	<string>Developer Tools</string>
+	<key>description</key>
+	<string>The missing package manager for macOS.</string>
+	<key>developer</key>
+	<string>Homebrew Team</string>
+	<key>display_name</key>
+	<string>Homebrew</string>
+	<key>installcheck_script</key>
+	<string>#!/bin/zsh
+[[ -x /usr/local/bin/brew ]] &amp;&amp; exit 1
+exit 0</string>
+	<key>installed_size</key>
+	<integer>512000</integer>
+	<key>installer_item_size</key>
+	<integer>512000</integer>
+	<key>installer_type</key>
+	<string>nopkg</string>
+	<key>minimum_os_version</key>
+	<string>10.14.0</string>
+	<key>name</key>
+	<string>Homebrew</string>
+	<key>notes</key>
+	<string>This is a wrapper around the default install script of homebrew to run it as a different user.</string>
+	<key>postinstall_script</key>
+	<string>#!/bin/zsh
+user="$(/usr/sbin/scutil &lt;&lt;&lt;"show State:/Users/ConsoleUser" | /usr/bin/awk -F': ' '/[[:space:]]+Name[[:space:]]:/ { print $2 }')"
+
+# Install process
+/usr/bin/curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o /tmp/brew_install.sh
+/bin/chmod a+x /tmp/brew_install.sh
+sudo -iu $user CI=1 /tmp/brew_install.sh</string>
+	<key>preinstall_script</key>
+	<string>#!/bin/zsh
+user="$(/usr/sbin/scutil &lt;&lt;&lt;"show State:/Users/ConsoleUser" | /usr/bin/awk -F': ' '/[[:space:]]+Name[[:space:]]:/ { print $2 }')"
+
+# Create base folders and permissions
+directories=(bin etc include lib sbin docs completions manpages share opt var Frameworks Cellar Caskroom Homebrew share/zsh share/zsh/site-functions var/homebrew var/homebrew/linked Library/Homebrew)
+for dir in "${directories[@]}"; do
+    /bin/mkdir "/usr/local/$dir" &amp;&gt;/dev/null
+    /usr/sbin/chown -R $user "/usr/local/$dir" &amp;&gt;/dev/null
+done
+
+# Specials
+/bin/mkdir "/Users/$user/Library/Caches/Homebrew"
+/bin/chmod 700 "/Users/$user/Library/Caches/Homebrew"
+/usr/sbin/chown "$user" "/Users/$user/Library/Caches/Homebrew"
+/usr/bin/chgrp  "staff" "/Users/$user/Library/Caches/Homebrew"
+/usr/bin/chgrp admin /usr/local/bin
+/bin/chmod 755 /usr/local/share/zsh
+/bin/chmod 755 /usr/local/share/zsh/site-functions</string>
+	<key>unattended_install</key>
+	<true/>
+	<key>uninstall_method</key>
+	<string>uninstall_script</string>
+	<key>uninstall_script</key>
+	<string>#!/bin/zsh
+
+curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall.sh -o /tmp/remove_homebrew.sh
+chmod a+x /tmp/remove_homebrew.sh
+/tmp/remove_homebrew.sh -q</string>
+	<key>uninstallable</key>
+	<true/>
+	<key>version</key>
+	<string>1.0</string>
+</dict>
+</plist>

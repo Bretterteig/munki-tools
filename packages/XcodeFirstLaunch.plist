@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>catalogs</key>
+	<array/>
+	<key>category</key>
+	<string>Developer Tools</string>
+	<key>description</key>
+	<string>This installs additional tools required for the use of Xcode.</string>
+	<key>developer</key>
+	<string>Apple Inc.</string>
+	<key>display_name</key>
+	<string>Xcode additionals</string>
+	<key>installcheck_script</key>
+	<string>#!/bin/zsh
+if ! [[ -e '/Applications/Xcode.app/Contents/Developer' ]];then
+	exit 0
+fi
+
+old_select="$(/usr/bin/xcode-select -p)"
+test $old_select "==" "/Applications/Xcode.app/Contents/Developer" || /usr/bin/xcode-select --switch "/Applications/Xcode.app/Contents/Developer"
+/usr/bin/xcodebuild -checkFirstLaunchStatus || install_required="true"
+test $old_select "==" "/Applications/Xcode.app/Contents/Developer" || /usr/bin/xcode-select --switch "$old_select"
+[[ -n $install_required ]] &amp;&amp; exit 0
+exit 1</string>
+	<key>installer_type</key>
+	<string>nopkg</string>
+	<key>minimum_os_version</key>
+	<string>10.14.0</string>
+	<key>name</key>
+	<string>XcodeFirstLaunch</string>
+	<key>notes</key>
+	<string>Item for bootstrapping Xcode installation</string>
+	<key>postinstall_script</key>
+	<string>#!/bin/zsh
+old_select=$(/usr/bin/xcode-select -p)
+/usr/bin/xcode-select --switch "/Applications/Xcode.app"
+/usr/bin/xcodebuild -license accept
+/usr/sbin/dseditgroup -o edit -a staff -t group _developer
+/usr/sbin/DevToolsSecurity -enable
+/usr/bin/xcodebuild -runFirstLaunch
+/usr/bin/xcode-select --switch "$old_select"</string>
+	<key>unattended_install</key>
+	<true/>
+	<key>version</key>
+	<string>1.0</string>
+</dict>
+</plist>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+	<key>catalogs</key>
+	<array/>
+	<key>category</key>
+	<string>Developer Tools</string>
+	<key>description</key>
+	<string>This is simple wrapper for the installation process of the Xcode CommandLine Tools. &lt;br&gt;
+You can either use this for installation or the normal way.&lt;br&gt;
+&lt;br&gt;&lt;br&gt;
+This item will not notify you of future updates.</string>
+	<key>developer</key>
+	<string>Apple Inc.</string>
+	<key>display_name</key>
+	<string>CommandLine Tools</string>
+	<key>installcheck_script</key>
+	<string>#!/bin/zsh
+if [[ -d /Library/Developer/CommandLineTools/Library ]];then
+	exit 1
+fi
+exit 0</string>
+	<key>installed_size</key>
+	<integer>1258292</integer>
+	<key>installer_item_size</key>
+	<integer>1258292</integer>
+	<key>installer_type</key>
+	<string>nopkg</string>
+	<key>minimum_os_version</key>
+	<string>10.14.0</string>
+	<key>name</key>
+	<string>CommandLineTools</string>
+	<key>postinstall_script</key>
+	<string>#!/bin/zsh
+touch "/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
+
+install_item="$(/usr/sbin/softwareupdate -l |
+                      grep -B 1 -E 'Command Line Tools' |
+                      awk -F'*' '/^ */ {print $2}' |
+                      sed -e 's/^ *Label: //' -e 's/^ *//' |
+                      sort -V |
+                      tail -n1)"
+
+/usr/sbin/softwareupdate -i "$install_item"
+/bin/rm -f "/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"</string>
+	<key>unattended_install</key>
+	<true/>
+	<key>uninstall_method</key>
+	<string>uninstall_script</string>
+	<key>uninstall_script</key>
+	<string>#!/bin/zsh
+
+/bin/rm -rf /Library/Developer/CommandLineTools/</string>
+	<key>uninstallable</key>
+	<true/>
+	<key>version</key>
+	<string>1.0</string>
+</dict>
+</plist>
