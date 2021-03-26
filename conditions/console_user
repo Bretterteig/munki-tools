@@ -1,0 +1,5 @@
+#!/bin/zsh
+managedinstalldir="$(/usr/libexec/PlistBuddy -c 'print ManagedInstallDir' /Library/Managed\ Preferences/ManagedInstalls.plist)"
+plist="${managedinstalldir}/ConditionalItems.plist"
+
+/usr/libexec/PlistBuddy -c "Add current_user string $(/usr/sbin/scutil <<<"show State:/Users/ConsoleUser" | /usr/bin/awk -F': ' '/[[:space:]]+Name[[:space:]]:/ { print $2 }')" "$plist"

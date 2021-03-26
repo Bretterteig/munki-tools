@@ -1,0 +1,5 @@
+#!/bin/zsh
+managedinstalldir="$(/usr/libexec/PlistBuddy -c 'print ManagedInstallDir' /Library/Managed\ Preferences/ManagedInstalls.plist)"
+plist="${managedinstalldir}/ConditionalItems.plist"
+
+/usr/libexec/PlistBuddy -c "Add language string $(/usr/libexec/PlistBuddy -c 'Print :AppleLanguages:0' /Library/Preferences/.GlobalPreferences.plist)" "$plist"

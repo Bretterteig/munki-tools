@@ -1,0 +1,73 @@
+#!/bin/zsh
+
+# Config. API User should only have read computer (groups_accounts).
+managedInstallDir="$(/usr/libexec/PlistBuddy -c 'print ManagedInstallDir' /Library/Managed\ Preferences/ManagedInstalls.plist)"
+computerGroupCache="${managedInstallDir}/.computergroupscache"
+userGroupCache="${managedInstallDir}/.usergroupscache"
+conditionPlist="${managedInstallDir}/ConditionalItems.plist"
+user="$(/usr/libexec/PlistBuddy -c 'print JAMF_API_USER' /Library/Managed\ Preferences/ManagedInstalls.plist)"
+pass="$(/usr/libexec/PlistBuddy -c 'print JAMF_API_PASSWORD' /Library/Managed\ Preferences/ManagedInstalls.plist)"
+udid="$(/usr/sbin/ioreg -d2 -c IOPlatformExpertDevice | /usr/bin/awk -F '"' '/IOPlatformUUID/{print $(NF-1)}')"
+jamfAPI="$(/usr/libexec/PlistBuddy -c 'print jss_url' /Library/Preferences/com.jamfsoftware.jamf.plist)JSSResource"
+IFS=$'\n'
+
+
+# Get data from JAMF
+computerGroups="$(/usr/bin/curl -u "${user}:${pass}" -X GET "${jamfAPI}/computers/udid/${udid}/subset/groups_accounts" -s -H "Accept application/xml" -H "Content-Type application/xml" | /usr/bin/xmllint --xpath "/computer/groups_accounts/computer_group_memberships" - 2>/dev/null)"
+jamfUser="$(/usr/bin/curl -u "${user}:${pass}" -X GET "${jamfAPI}/computers/udid/${udid}/subset/location" -s -H "Accept application/xml" -H "Content-Type application/xml" | xmllint --xpath "/computer/location/username/text()" - 2>/dev/null)"
+
+if [[ -n $jamfUser ]];then
+    userGroups="$(/usr/bin/curl -u "${user}:${pass}" -X GET "${jamfAPI}/users/name/$jamfUser" -s -H "Accept application/xml" -H "Content-Type application/xml"  | xmllint --xpath "/user/user_groups" - 2>/dev/null)"
+else
+    echo "Could not query JAMF user. Will use cache."
+fi
+
+
+
+# Init empty array for groups
+/usr/libexec/PlistBuddy -c "Add JAMF_computer_groups array" "$conditionPlist"
+/usr/libexec/PlistBuddy -c "Add JAMF_user_groups array" "$conditionPlist"
+
+# Handle computer groups
+if [[ -z $computerGroups ]];then
+    # Read from cache when API call failed
+    echo "JAMF computer groups (from cache):"
+    for group in $(cat "$computerGroupCache");do
+        echo "   \"$group\""
+        /usr/libexec/PlistBuddy -c "Add JAMF_computer_groups: string \"${group}\"" "$conditionPlist"
+    done
+else
+    echo -n "" > "$computerGroupCache"
+    echo "JAMF computer groups:"
+
+    i=1
+    while group="$(echo "$computerGroups" | /usr/bin/xmllint --xpath "/computer_group_memberships/group[$i]/text()" - 2>/dev/null)";do
+	    echo "   \"$group\""
+        echo "$group" >> "$computerGroupCache"
+        /usr/libexec/PlistBuddy -c "Add JAMF_computer_groups: string \"${group}\"" "$conditionPlist"
+        i=$(($i+1))
+    done
+fi
+
+# Handle user groups
+if [[ -z $userGroups ]];then
+    echo "JAMF user groups (from cache):"
+    for group in $(cat "$userGroupCache");do
+        echo "   \"$group\""
+        /usr/libexec/PlistBuddy -c "Add JAMF_user_groups: string \"${group}\"" "$conditionPlist"
+    done
+else
+    echo -n "" > "$userGroupCache"
+    echo "JAMF user groups:"
+
+    i=1
+    while group="$(echo "$userGroups" | /usr/bin/xmllint --xpath "/user_groups/user_group[$i]/name/text()" - 2>/dev/null)";do
+	    echo "   \"$group\""
+        echo "$group" >> "$userGroupCache"
+        /usr/libexec/PlistBuddy -c "Add JAMF_user_groups: string \"${group}\"" "$conditionPlist"
+        i=$(($i+1))
+    done
+fi
+
+# Make sure it is correctly formatted.
+/usr/bin/plutil -convert xml1 "$conditionPlist"
