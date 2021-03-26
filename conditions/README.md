@@ -23,11 +23,11 @@ Here is a sample condtion:
 _JAMF_user_groups CONTAINS "MyGroup"_
 
 #### language
-This will output the language locale of the system in this format: en-EN
+This will output the language locale. The format various from system to system.
 Be advised that combinations such as en-NL are possible.
 
-It is advisable to create conditions like this:
-_language BEGINSWITH en-_
+You can eliminate most cases with the following predicate:
+language BEGINSWITH "en-" OR language IN { 1, 2, 3, 4 , "English" } 
 
 #### console_user
 This codition will make it possible to scope software to the currently logged in user.
