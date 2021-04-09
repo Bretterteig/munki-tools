@@ -81,7 +81,7 @@ skip_lines = ['Software Update Tool', 'Finding available software']
 while download.poll() is None:
     if stop_requested():
         download.kill()
-        exit(1)
+        quit_error("User stopped download")
 
     line = download.stdout.readline()
 
