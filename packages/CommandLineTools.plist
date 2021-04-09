@@ -33,18 +33,73 @@ exit 0</string>
 	<key>name</key>
 	<string>CommandLineTools</string>
 	<key>postinstall_script</key>
-	<string>#!/bin/zsh
-touch "/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
+	<string>#!/usr/local/munki/munki-python
 
-install_item="$(/usr/sbin/softwareupdate -l |
-                      grep -B 1 -E 'Command Line Tools' |
-                      awk -F'*' '/^ */ {print $2}' |
-                      sed -e 's/^ *Label: //' -e 's/^ *//' |
-                      sort -V |
-                      tail -n1)"
+# REQUIRED LIBRARIES
+import subprocess, os
+from time import sleep
+from sys import path
+path.append('/usr/local/munki')
+from munkilib.processes import stop_requested
+from munkilib.display import display_status_minor, display_percent_done, display_error
 
-/usr/sbin/softwareupdate -i "$install_item"
-/bin/rm -f "/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"</string>
+def quit_error(msg: str):
+    # Remove the installer state
+    try: 
+        os.remove("/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress")
+    except:
+        pass
+
+    display_error(msg)
+    display_status_minor(msg)
+    sleep(5)
+    exit(1)
+
+
+# Prepare download
+open('/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress', 'a').close()
+
+# Get the correct item name
+display_status_minor('Scanning for installer ')
+scan_result = subprocess.run(['/usr/sbin/softwareupdate', '-l'], stdout=subprocess.PIPE).stdout.decode().split('\n')
+command_line_tools = [item for item in scan_result if 'Label:' in item and 'Command Line Tools' in item ][0].split(': ')[1].strip()
+
+if not command_line_tools:
+    quit_error('Could not find suitable installer via SoftwareUpdate')
+
+# DOWNLOAD THE OS FROM APPLE CDN
+display_status_minor('Download started ')
+download = subprocess.Popen(
+    ['/usr/bin/script', '-q', '/dev/null', '/usr/sbin/softwareupdate', '--install', command_line_tools],
+    bufsize=0,
+    universal_newlines=True,
+    stdout=subprocess.PIPE
+)
+
+skip_lines = ['Software Update Tool', 'Finding available software']
+
+while download.poll() is None:
+    if stop_requested():
+        download.kill()
+        exit(1)
+
+    line = download.stdout.readline()
+
+    if line is None or line.strip() == "" or line.strip() in skip_lines:
+        continue
+
+    display_status_minor(line)
+
+if download.returncode != 0:
+    quit_error('Installation of ' + command_line_tools + ' failed.')
+
+# Remove the installer state
+try: 
+    os.remove("/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress")
+except:
+    pass
+
+exit(0)</string>
 	<key>unattended_install</key>
 	<true/>
 	<key>uninstall_method</key>
