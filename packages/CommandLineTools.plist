@@ -2,43 +2,57 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-
+	<key>autoremove</key>
+	<false/>
 	<key>catalogs</key>
-	<array/>
+	<array>
+		<string>testing</string>
+		<string>production</string>
+	</array>
 	<key>category</key>
 	<string>Developer Tools</string>
 	<key>description</key>
-	<string>This is simple wrapper for the installation process of the Xcode CommandLine Tools. &lt;br&gt;
+	<string>This is simple wrapper for the installation process of the Xcode CommandLine Tools&lt;br&gt;
 You can either use this for installation or the normal way.&lt;br&gt;
 &lt;br&gt;&lt;br&gt;
-This item will not notify you of future updates.</string>
+This item will not notify you of future updates.
+
+Additional Tags: CLI, CLT</string>
 	<key>developer</key>
 	<string>Apple Inc.</string>
 	<key>display_name</key>
-	<string>CommandLine Tools</string>
-	<key>installcheck_script</key>
-	<string>#!/bin/zsh
-if [[ -d /Library/Developer/CommandLineTools/Library ]];then
-	exit 1
-fi
-exit 0</string>
+	<string>Xcode commandline tools</string>
+	<key>icon_name</key>
+	<string>Xcode.png</string>
 	<key>installed_size</key>
 	<integer>1258292</integer>
 	<key>installer_item_size</key>
 	<integer>1258292</integer>
 	<key>installer_type</key>
 	<string>nopkg</string>
+	<key>installs</key>
+	<array>
+		<dict>
+			<key>path</key>
+			<string>/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk</string>
+			<key>type</key>
+			<string>file</string>
+		</dict>
+	</array>
 	<key>minimum_os_version</key>
 	<string>10.14.0</string>
 	<key>name</key>
 	<string>CommandLineTools</string>
+	<key>notes</key>
+	<string>This will simply cast the install request for CommandLine tools</string>
 	<key>postinstall_script</key>
 	<string>#!/usr/local/munki/munki-python
 
 # REQUIRED LIBRARIES
-import subprocess, os
+import subprocess
+import os, re
 from time import sleep
-from sys import path
+from sys import path, version
 path.append('/usr/local/munki')
 from munkilib.processes import stop_requested
 from munkilib.display import display_status_minor, display_percent_done, display_error
@@ -62,10 +76,12 @@ open('/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress', 'a').clo
 # Get the correct item name
 display_status_minor('Scanning for installer ')
 scan_result = subprocess.run(['/usr/sbin/softwareupdate', '-l'], stdout=subprocess.PIPE).stdout.decode().split('\n')
-command_line_tools = [item for item in scan_result if 'Label:' in item and 'Command Line Tools' in item ][0].split(': ')[1].strip()
+clt_available = [item for item in scan_result if 'Label:' in item and 'Command Line Tools' in item and 'beta' not in item]
 
-if not command_line_tools:
+if not clt_available:
     quit_error('Could not find suitable installer via SoftwareUpdate')
+
+command_line_tools = sorted(clt_available, key = lambda title: title.split('-')[-1], reverse=True)[0].split(': ')[-1]
 
 # DOWNLOAD THE OS FROM APPLE CDN
 display_status_minor('Download started ')
@@ -76,16 +92,16 @@ download = subprocess.Popen(
     stdout=subprocess.PIPE
 )
 
-skip_lines = ['Software Update Tool', 'Finding available software']
+skip_lines = ['.*Software Update Tool.*', '.*Finding available software.*', '*XType:*']
 
 while download.poll() is None:
     if stop_requested():
         download.kill()
-        quit_error("User stopped download")
+        exit(1)
 
     line = download.stdout.readline()
 
-    if line is None or line.strip() == "" or line.strip() in skip_lines:
+    if line is None or line.strip() == "" or any(re.compile(regex).match(line.strip()) for regex in skip_lines):
         continue
 
     display_status_minor(line)
